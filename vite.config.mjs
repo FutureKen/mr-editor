@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/mr-editor/',
   plugins: [
     react({
       // Use Babel integration for broader compatibility, including JSX in .js files
