@@ -98,7 +98,7 @@ const ExportButtons = ({ sundayDate, daysToShow = 7, startOnSunday = true, langu
 
 			// Determine Title and fetch Summary based on language
 			const savedTitleText = loadTitleState(language);
-			const sundayDateFormatted = moment(sundayDate).locale(language).format("LL");
+			const sundayDateFormatted = moment(sundayDate).locale(language).format(language === 'en' ? 'MMMM Do, YYYY' : 'LL');
 			const titleLine = `${sundayDateFormatted} ${savedTitleText}`.trim(); // Construct full title
 			const summaryText = loadSummaryState(language);
 
@@ -178,8 +178,8 @@ const ExportButtons = ({ sundayDate, daysToShow = 7, startOnSunday = true, langu
 										vLineWidth: function(i, node) { return (i === 1) ? 0 : 1; },
 										paddingLeft: function(i) { return 5; },
 										paddingRight: function(i) { return 5; },
-										paddingTop: function(i) { return 5; },
-										paddingBottom: function(i) { return 5; }
+										paddingTop: function(i) { return 3; },
+										paddingBottom: function(i) { return 3; }
 									}
 								});
 							}
@@ -190,7 +190,7 @@ const ExportButtons = ({ sundayDate, daysToShow = 7, startOnSunday = true, langu
 							contentElements.push({
 								text: section.message,
 								style: 'message',
-								margin: [0, 3, 0, 3]
+								margin: [5, 3, 0, 3]
 							});
 						}
 						
@@ -221,7 +221,7 @@ const ExportButtons = ({ sundayDate, daysToShow = 7, startOnSunday = true, langu
 						fontSize: 12
 					},
 					message: {
-						fontSize: 12,
+						fontSize: 11,
 						italics: true
 					}
 				}
