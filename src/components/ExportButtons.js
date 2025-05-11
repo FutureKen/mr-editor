@@ -231,7 +231,8 @@ const ExportButtons = ({ sundayDate, daysToShow = 7, startOnSunday = true, langu
 			const pdfDoc = pdfMake.createPdf(docDefinition);
 			
 			// Define filename based on language
-			const filename = language === 'en' ? 'church-announcements-en.pdf' : 'church-announcements-zh.pdf';
+			const MMDDYYYY = moment(sundayDate).format('MMDDYYYY');
+			const filename = language === 'en' ? `MR_${MMDDYYYY}_EN.pdf` : `MR_${MMDDYYYY}_CHN.pdf`;
 
 			if (action === 'download') {
 				pdfDoc.download(filename);
