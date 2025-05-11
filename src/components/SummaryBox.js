@@ -3,9 +3,7 @@ import React, { useState, useEffect } from 'react';
 const SummaryBox = ({ language }) => {
 
 	// Define language-specific default text
-	const defaultText = language === 'en' 
-		? '1. Come pray together in one accord for the saints and gospel warfare, every Tues. evening 8:00 - 9:30pm\n'
-		: '1. 每週二晚上 8:00-9:30 為聖徒和福音的爭戰同心合意地來在一起禱告\n';
+	const defaultText = "Weekly Summary";
 
 	// Construct language-specific storage key
 	const storageKey = `summary_${language}`;

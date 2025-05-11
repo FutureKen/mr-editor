@@ -235,7 +235,7 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 			{/* Message Input */}
 			<div className="mt-6">
 				<div className="flex items-center justify-between mb-2">
-					<label className="block text-sm font-semibold text-slate-700">Message</label>
+					<label className="block text-sm font-semibold text-slate-700">{language === 'en' ? 'Message' : '信息'}</label>
 					{day > 0 && (
 						<div className="flex items-center">
 							<input
@@ -255,7 +255,7 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 				<input
 					value={message}
 					onChange={handleMessageChange}
-					placeholder="Optional message"
+					placeholder="message"
 					className="message w-full p-3 border border-slate-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50"
 					disabled={sameAsLastDay}
 				/>

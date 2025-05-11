@@ -3,6 +3,7 @@
 /node_modules/
 /certs/*
 /fonts/*
+/dist/*
 
 # React Router
 /.react-router/
