@@ -32,7 +32,9 @@ const TitleLine = ({ date, language }) => {
 		if (date) {
 			const momentDate = moment(date);
 			momentDate.locale(language);
-			const formattedDate = momentDate.format("LL"); // Use the LL format
+			
+			const formatString = language === 'en' ? 'MMMM Do, YYYY' : 'LL';
+			const formattedDate = momentDate.format(formatString);
 			setFormattedDate(formattedDate);
 		}
 	}, [date, language]);
