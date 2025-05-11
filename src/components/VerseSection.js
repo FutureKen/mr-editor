@@ -163,7 +163,7 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 	return (
 		<div className="bible-verse-section bg-white rounded-xl p-6 mb-6 shadow-lg border border-slate-200">
 			<div className="date-book-container mb-5">
-				<div className="flex items-center space-x-3 p-3 border border-slate-200 rounded-lg shadow-sm bg-slate-50">
+				<div className="flex items-center space-x-3 p-3 border border-slate-200 rounded-lg shadow-sm bg-slate-200">
 					<span className="font-medium text-slate-600 flex-shrink-0">
 						{computedDateString || ''} 
 					</span>
@@ -171,7 +171,7 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 						value={book}
 						onChange={handleBookChange}
 						placeholder="Book Name"
-						className="book-input flex-grow p-0 border-0 focus:ring-0 focus:border-transparent bg-transparent transition-all"
+						className="book-input flex-grow p-0 border-0 focus:ring-0 focus:border-transparent bg-slate-50 transition-all"
 					/>
 				</div>
 			</div>
@@ -256,7 +256,7 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 					value={message}
 					onChange={handleMessageChange}
 					placeholder="message"
-					className="message w-full p-3 border border-slate-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50"
+					className={`message w-full p-3 border border-slate-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${sameAsLastDay ? 'bg-slate-200 text-slate-500 cursor-not-allowed opacity-75' : 'bg-slate-50'}`}
 					disabled={sameAsLastDay}
 				/>
 			</div>
