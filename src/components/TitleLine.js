@@ -4,7 +4,7 @@ import 'moment/dist/locale/zh-tw'; // Import the Chinese locale data
 
 const TitleLine = ({ date, language }) => {
 	const storageKey = `title_line_${language}`;
-	const defaultTitle = language === 'en' ? 'Church Announcements' : '召會報告事項';
+	const defaultTitle = language === 'en' ? 'Announcements' : '報告事項';
 
 	// Load state from local storage
 	const loadState = () => {
