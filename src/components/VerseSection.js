@@ -85,10 +85,12 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 		setVerses(currentVerses => [...currentVerses, createNewVerse()]);
 	};
 
-	// Delete a verse row, ensuring at least one remains
+	// Delete a verse row; if it's the last one, clear its content instead
 	const deleteVerseRow = (id) => {
 		setVerses(currentVerses => {
-			if (currentVerses.length <= 1) return currentVerses; // Keep at least one row
+			if (currentVerses.length <= 1) {
+				return [{ ...currentVerses[0], verseReference: "", verseText: "" }];
+			}
 			return currentVerses.filter(verse => verse.id !== id);
 		});
 	};
@@ -211,16 +213,14 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 							</div>
 						</div>
 					</div>
-					{/* Delete Button - only show if more than one verse exists */}
-					{verses.length > 1 && (
-						<button
-							onClick={() => deleteVerseRow(verse.id)}
-							className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 font-bold text-xl h-10 w-10 flex items-center justify-center rounded-full transition-colors"
-							title="Delete Verse"
-						>
-							×
-						</button>
-					)}
+					{/* Delete Button */}
+					<button
+						onClick={() => deleteVerseRow(verse.id)}
+						className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 font-bold text-xl h-10 w-10 flex items-center justify-center rounded-full transition-colors"
+						title="Delete Verse"
+					>
+						×
+					</button>
 				</div>
 			))}
 
