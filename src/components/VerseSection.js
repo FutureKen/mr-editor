@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid'; // Import UUID
+import ImportVerseDialog from './ImportVerseDialog';
+
+// Custom event used to broadcast an imported verse to every VerseSection for a
+// given day, so a single import populates both the English and Chinese columns.
+const IMPORT_EVENT = 'mr-import-verse';
+
+// Custom event used to clear the verse rows of every VerseSection on the page
+// (both columns, all days) in one action.
+export const CLEAR_VERSES_EVENT = 'mr-clear-verses';
 
 
 const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language }) => {
@@ -17,7 +26,7 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 			const serializedState = localStorage.getItem(storageKey);
 			if (serializedState === null) {
 				// Initialize with one empty verse if nothing is saved
-				return { book: "", verses: [createNewVerse()], message: "" };
+				return { book: "", verses: [createNewVerse()], message: "", sameAsLastDay: false };
 			}
 			const parsedState = JSON.parse(serializedState);
 			// Ensure verses array exists and has at least one item
@@ -27,7 +36,7 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 			return parsedState;
 		} catch (err) {
 			// Initialize with one empty verse on error
-			return { book: "", verses: [createNewVerse()], message: "" };
+			return { book: "", verses: [createNewVerse()], message: "", sameAsLastDay: false };
 		}
 	};
 
@@ -64,8 +73,9 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 	const [verses, setVerses] = useState(savedState.verses); // State for verses array
 	const [computedDateString, setComputedDateString] = useState(""); // State for the formatted date string only
 	const [message, setMessage] = useState(savedState.message);
-	const [sameAsLastDay, setSameAsLastDay] = useState(false);
+	const [sameAsLastDay, setSameAsLastDay] = useState(savedState.sameAsLastDay || false);
 	const [prevDayMessage, setPrevDayMessage] = useState(loadPrevDayMessage());
+	const [importOpen, setImportOpen] = useState(false);
 
 	const handleBookChange = (e) => {
 		setBook(e.target.value); // Directly set the book name
@@ -95,6 +105,54 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 		});
 	};
 
+
+	// Append an imported verse, reusing a trailing empty row if there is one.
+	const appendImportedVerse = (reference, text) => {
+		setVerses(currentVerses => {
+			const newVerse = { id: uuidv4(), verseReference: reference, verseText: text };
+			const last = currentVerses[currentVerses.length - 1];
+			if (last && !last.verseReference.trim() && !last.verseText.trim()) {
+				return [...currentVerses.slice(0, -1), newVerse];
+			}
+			return [...currentVerses, newVerse];
+		});
+	};
+
+	// Broadcast the chosen verse to every VerseSection for this day so both the
+	// English and Chinese columns receive their respective text in one click.
+	const handleImport = ({ enRef, cnRef, enText, cnText }) => {
+		window.dispatchEvent(new CustomEvent(IMPORT_EVENT, {
+			detail: {
+				day,
+				byLanguage: {
+					'en': { reference: enRef, text: enText },
+					'zh-tw': { reference: cnRef, text: cnText },
+				},
+			},
+		}));
+		setImportOpen(false);
+	};
+
+	// Listen for imported verses targeting this day and add the matching
+	// language's text to this section.
+	useEffect(() => {
+		const handler = (e) => {
+			const detail = e.detail || {};
+			if (String(detail.day) !== String(day)) return;
+			const payload = detail.byLanguage && detail.byLanguage[language];
+			if (!payload) return;
+			appendImportedVerse(payload.reference, payload.text);
+		};
+		window.addEventListener(IMPORT_EVENT, handler);
+		return () => window.removeEventListener(IMPORT_EVENT, handler);
+	}, [day, language]);
+
+	// Reset this section's verse rows when a page-wide clear is broadcast.
+	useEffect(() => {
+		const handler = () => setVerses([createNewVerse()]);
+		window.addEventListener(CLEAR_VERSES_EVENT, handler);
+		return () => window.removeEventListener(CLEAR_VERSES_EVENT, handler);
+	}, []);
 
 	const handleMessageChange = (e) => {
 		if (!sameAsLastDay) {
@@ -151,8 +209,8 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 
 	// Save state to local storage whenever state changes
 	useEffect(() => {
-		saveState({ book, verses, message }); // Save verses array
-	}, [book, verses, message, storageKey]); // Add storageKey dependency
+		saveState({ book, verses, message, sameAsLastDay }); // Save verses array
+	}, [book, verses, message, sameAsLastDay, storageKey]); // Add storageKey dependency
 
 	const autoResizeTextarea = (e) => {
 		e.target.style.height = 'inherit';
@@ -224,13 +282,42 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 				</div>
 			))}
 
-			{/* Add Row Button */}
-			<button
-				onClick={addVerseRow}
-				className="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center shadow-sm"
-			>
-				<span className="text-lg mr-1">+</span> Add Row
-			</button>
+			{/* Add Row / Import Buttons */}
+			<div className="mt-3 flex items-center gap-2">
+				<button
+					onClick={addVerseRow}
+					className="h-8 w-8 flex items-center justify-center bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-sm"
+					title="Add verse row"
+				>
+					<span className="text-lg leading-none">+</span>
+				</button>
+				<button
+					onClick={() => setImportOpen(true)}
+					className="h-8 w-8 flex items-center justify-center bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors shadow-sm"
+					title="Search and import a verse (English + Chinese)"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						fill="none"
+						viewBox="0 0 24 24"
+						strokeWidth={1.5}
+						stroke="currentColor"
+						className="h-4 w-4"
+					>
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"
+						/>
+					</svg>
+				</button>
+			</div>
+
+			<ImportVerseDialog
+				isOpen={importOpen}
+				onClose={() => setImportOpen(false)}
+				onImport={handleImport}
+			/>
 
 			{/* Message Input */}
 			<div className="mt-6">

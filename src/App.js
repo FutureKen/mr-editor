@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DatePicker from './components/DatePicker';
 import TitleLine from './components/TitleLine';
-import VerseSection from './components/VerseSection';
+import VerseSection, { CLEAR_VERSES_EVENT } from './components/VerseSection';
 import ExportButtons from './components/ExportButtons';
 import SummaryBox from './components/SummaryBox';
 import moment from 'moment';
@@ -81,6 +81,13 @@ const App = () => {
 		setSundayDate(moment(isoDateString));
 	};
 
+	// Clear every verse row on the page (both columns, all days) after confirming.
+	const handleClearAllVerses = () => {
+		if (window.confirm('Clear all verses on the page? This cannot be undone.')) {
+			window.dispatchEvent(new CustomEvent(CLEAR_VERSES_EVENT));
+		}
+	};
+
 	return (
 		// Use Tailwind for overall layout and responsive grid
 		<div className="container mx-auto p-6 font-sans bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
@@ -116,6 +123,14 @@ const App = () => {
 							Start on Sunday
 						</label>
 					</div>
+
+					<button
+						onClick={handleClearAllVerses}
+						className="ml-4 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-sm font-medium shadow-sm"
+						title="Clear all verse rows in both columns for every day"
+					>
+						Clear All Verses
+					</button>
 				</div>
 			</div>
 
