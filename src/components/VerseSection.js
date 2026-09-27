@@ -282,7 +282,7 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language,
 							ref={headingRef}
 							value={book}
 							onChange={handleBookChange}
-							placeholder={line === 'eol' ? 'Heading (e.g. Message 1: Regeneration)' : 'Heading (optional)'}
+							placeholder="Heading (optional)"
 							rows="1"
 							className="book-input flex-grow p-0 border-0 focus:ring-0 focus:border-transparent bg-slate-50 resize-none overflow-hidden transition-all"
 						/>
