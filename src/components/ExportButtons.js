@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid'; // Import for default verse structure
 // Import pdfmake and vfs_fonts
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from '../fonts/Pingfang';
+import { isSplitDay, sectionStorageKey, loadLineTitles } from '../lib/readingLines';
 
 // Initialize pdfMake with the virtual file system
 pdfMake.vfs = pdfFonts;
@@ -64,8 +65,8 @@ const loadTitleState = (language) => {
 };
 
 // Load state for a specific day/language from local storage
-const loadSectionState = (day, language) => {
-	const storageKey = `verse_${day}_${language}`;
+const loadSectionState = (day, language, line) => {
+	const storageKey = sectionStorageKey(day, language, line);
 	try {
 		const serializedState = localStorage.getItem(storageKey);
 		if (serializedState === null) {
@@ -83,7 +84,27 @@ const loadSectionState = (day, language) => {
 };
 
 // Component now uses sundayDate and language props to fetch data from localStorage
-const ExportButtons = ({ sundayDate, daysToShow = 7, startOnSunday = true, language }) => {
+// Contents of one reading-line cell on a split day: date, heading, verses, message.
+const buildLineCell = (date, section) => {
+	const stack = [{ text: date, margin: [0, 0, 0, 4] }];
+	if (section.book?.trim()) {
+		stack.push({ text: section.book, bold: true, margin: [0, 0, 0, 4] });
+	}
+	(section.verses || []).forEach(verse => {
+		if (verse.verseReference?.trim() || verse.verseText?.trim()) {
+			stack.push({
+				text: [{ text: verse.verseReference || '', bold: true }, ' ', verse.verseText || ''],
+				margin: [0, 0, 0, 4]
+			});
+		}
+	});
+	if (section.message?.trim()) {
+		stack.push({ text: section.message, bold: true, margin: [0, 2, 0, 0] });
+	}
+	return { stack, style: 'lineCell' };
+};
+
+const ExportButtons = ({ sundayDate, daysToShow = 7, startOnSunday = true, splitFromDay = null, language }) => {
 	const [pdfInitialized, setPdfInitialized] = useState(true); // Assume initialized
 	const [error, setError] = useState(null);
 
@@ -103,11 +124,19 @@ const ExportButtons = ({ sundayDate, daysToShow = 7, startOnSunday = true, langu
 			const summaryText = loadSummaryState(language);
 
 			const sectionData = [];
+			const splitRows = []; // days rendered as two reading lines side by side
 			// Only process the selected number of days and start from the correct day
 			for (let i = 0; i < daysToShow; i++) {
 				const day = startOnSunday ? i : i + 1;
 				if (day <= 6) { // Make sure we don't go beyond day 6
 					const date = moment(sundayDate).add(day, 'days').locale(language).format("MM/DD (ddd)");
+					if (isSplitDay(day, splitFromDay)) {
+						splitRows.push([
+							buildLineCell(date, loadSectionState(day, language, 'ls')),
+							buildLineCell(date, loadSectionState(day, language, 'eol'))
+						]);
+						continue;
+					}
 					const sectionState = loadSectionState(day, language);
 					sectionData.push({
 						date: date,
@@ -195,7 +224,31 @@ const ExportButtons = ({ sundayDate, daysToShow = 7, startOnSunday = true, langu
 						}
 						
 						return contentElements;
-					})
+					}),
+					// Split days: a two-column table, one column per reading line
+					...(splitRows.length > 0 ? [(() => {
+						const lineTitles = loadLineTitles(language);
+						return {
+							table: {
+								headerRows: 1,
+								widths: ['*', '*'],
+								body: [
+									[
+										{ text: lineTitles.ls, style: 'lineHeader' },
+										{ text: lineTitles.eol, style: 'lineHeader' }
+									],
+									...splitRows
+								]
+							},
+							layout: {
+								paddingLeft: function() { return 6; },
+								paddingRight: function() { return 6; },
+								paddingTop: function() { return 5; },
+								paddingBottom: function() { return 5; }
+							},
+							margin: [0, 10, 0, 0]
+						};
+					})()] : [])
 				],
 				styles: { // Styles remain the same for PDF
 					title: {
@@ -223,6 +276,14 @@ const ExportButtons = ({ sundayDate, daysToShow = 7, startOnSunday = true, langu
 					message: {
 						fontSize: 11,
 						italics: true
+					},
+					lineHeader: {
+						fontSize: 12,
+						bold: true,
+						alignment: 'center'
+					},
+					lineCell: {
+						fontSize: 11
 					}
 				}
 			};

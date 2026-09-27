@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid'; // Import UUID
 import ImportVerseDialog from './ImportVerseDialog';
+import { sectionStorageKey } from '../lib/readingLines';
 
 // Custom event used to broadcast an imported verse to every VerseSection for a
 // given day, so a single import populates both the English and Chinese columns.
@@ -12,10 +13,25 @@ const IMPORT_EVENT = 'mr-import-verse';
 export const CLEAR_VERSES_EVENT = 'mr-clear-verses';
 
 
-const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language }) => {
+// Accent colours for the two reading lines when a day is split.
+const LINE_ACCENT = {
+	ls: 'border-l-amber-400',
+	eol: 'border-l-emerald-500',
+};
+const LINE_BADGE = {
+	ls: 'bg-amber-100 text-amber-800',
+	eol: 'bg-emerald-100 text-emerald-800',
+};
 
-	const storageKey = `verse_${day}_${language}`;
-	const prevDayStorageKey = day > 0 ? `verse_${day-1}_${language}` : null;
+// `line` ('ls' | 'eol') renders this section as one of two reading lines of a
+// split day; `canCopyPrevDay` controls whether "Same as last day" is offered.
+const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language, line, lineTitle, canCopyPrevDay = day > 0 }) => {
+
+	const storageKey = sectionStorageKey(day, language, line);
+	const prevDayStorageKey = day > 0 && canCopyPrevDay ? sectionStorageKey(day - 1, language, line) : null;
+	// Imports are routed per line so the Experience of Life line only receives
+	// verses imported from an Experience of Life section.
+	const importLine = line === 'eol' ? 'eol' : '';
 
 	// Helper function to generate a new empty verse
 	const createNewVerse = () => ({ id: uuidv4(), verseReference: "", verseText: "" });
@@ -73,7 +89,7 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 	const [verses, setVerses] = useState(savedState.verses); // State for verses array
 	const [computedDateString, setComputedDateString] = useState(""); // State for the formatted date string only
 	const [message, setMessage] = useState(savedState.message);
-	const [sameAsLastDay, setSameAsLastDay] = useState(savedState.sameAsLastDay || false);
+	const [sameAsLastDay, setSameAsLastDay] = useState(Boolean(savedState.sameAsLastDay && prevDayStorageKey));
 	const [prevDayMessage, setPrevDayMessage] = useState(loadPrevDayMessage());
 	const [importOpen, setImportOpen] = useState(false);
 
@@ -124,6 +140,7 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 		window.dispatchEvent(new CustomEvent(IMPORT_EVENT, {
 			detail: {
 				day,
+				line: importLine,
 				byLanguage: {
 					'en': { reference: enRef, text: enText },
 					'zh-tw': { reference: cnRef, text: cnText },
@@ -139,13 +156,14 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 		const handler = (e) => {
 			const detail = e.detail || {};
 			if (String(detail.day) !== String(day)) return;
+			if ((detail.line || '') !== importLine) return;
 			const payload = detail.byLanguage && detail.byLanguage[language];
 			if (!payload) return;
 			appendImportedVerse(payload.reference, payload.text);
 		};
 		window.addEventListener(IMPORT_EVENT, handler);
 		return () => window.removeEventListener(IMPORT_EVENT, handler);
-	}, [day, language]);
+	}, [day, language, importLine]);
 
 	// Reset this section's verse rows when a page-wide clear is broadcast.
 	useEffect(() => {
@@ -217,22 +235,65 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 		e.target.style.height = `${e.target.scrollHeight}px`;
 	};
 
-	// Create a unique ID for checkbox that includes both day and language
-	const checkboxId = `sameAsLastDay-${day}-${language}`;
+	// Keep the multi-line heading sized to its content, including on first load
+	// and whenever its width changes (the first layout may happen at width 0).
+	const headingRef = useRef(null);
+	useLayoutEffect(() => {
+		const el = headingRef.current;
+		if (!el) return;
+		const fit = () => {
+			el.style.height = 'inherit';
+			el.style.height = `${el.scrollHeight}px`;
+		};
+		fit();
+		let lastWidth = el.clientWidth;
+		const observer = new ResizeObserver(() => {
+			if (el.clientWidth !== lastWidth) {
+				lastWidth = el.clientWidth;
+				fit();
+			}
+		});
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, [book, line]);
+
+	// Create a unique ID for checkbox that includes day, line and language
+	const checkboxId = `sameAsLastDay-${day}-${line ? `${line}-` : ''}${language}`;
+
+	const sectionClass = line
+		? `bible-verse-section bg-white rounded-lg p-4 mb-3 last:mb-0 border border-slate-200 border-l-4 ${LINE_ACCENT[line]}`
+		: 'bible-verse-section bg-white rounded-xl p-6 mb-6 shadow-lg border border-slate-200';
 
 	return (
-		<div className="bible-verse-section bg-white rounded-xl p-6 mb-6 shadow-lg border border-slate-200">
+		<div className={sectionClass}>
+			{line && (
+				<span className={`inline-block mb-2 px-2 py-0.5 rounded text-xs font-semibold ${LINE_BADGE[line]}`}>
+					{lineTitle}
+				</span>
+			)}
 			<div className="date-book-container mb-5">
-				<div className="flex items-center space-x-3 p-3 border border-slate-200 rounded-lg shadow-sm bg-slate-200">
+				<div className="flex items-start space-x-3 p-3 border border-slate-200 rounded-lg shadow-sm bg-slate-200">
 					<span className="font-medium text-slate-600 flex-shrink-0">
-						{computedDateString || ''} 
+						{computedDateString || ''}
 					</span>
-					<input
-						value={book}
-						onChange={handleBookChange}
-						placeholder="Book Name"
-						className="book-input flex-grow p-0 border-0 focus:ring-0 focus:border-transparent bg-slate-50 transition-all"
-					/>
+					{line ? (
+						// Line headings can span several lines (e.g. message title + outline).
+						<textarea
+							ref={headingRef}
+							value={book}
+							onChange={handleBookChange}
+							placeholder={line === 'eol' ? 'Heading (e.g. Message 1: Regeneration)' : 'Heading (optional)'}
+							rows="1"
+							className="book-input flex-grow p-0 border-0 focus:ring-0 focus:border-transparent bg-slate-50 resize-none overflow-hidden transition-all"
+						/>
+					) : (
+						<input
+							value={book}
+							onChange={handleBookChange}
+							placeholder="Book Name"
+							className="book-input flex-grow p-0 border-0 focus:ring-0 focus:border-transparent bg-slate-50 transition-all"
+						/>
+					)}
 				</div>
 			</div>
 
@@ -323,7 +384,7 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 			<div className="mt-6">
 				<div className="flex items-center justify-between mb-2">
 					<label className="block text-sm font-semibold text-slate-700">{language === 'en' ? 'Message' : '信息'}</label>
-					{day > 0 && (
+					{prevDayStorageKey && (
 						<div className="flex items-center">
 							<input
 								type="checkbox"
@@ -331,7 +392,6 @@ const VerseSection = ({ day, sundayDate, /*message, onMessageChange, */language 
 								checked={sameAsLastDay}
 								onChange={handleSameAsLastDayChange}
 								className="mr-2"
-								disabled={day === 0}
 							/>
 							<label htmlFor={checkboxId} className="text-sm text-slate-600">
 								Same as last day
