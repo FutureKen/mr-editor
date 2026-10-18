@@ -5,7 +5,9 @@ import { v4 as uuidv4 } from 'uuid'; // Import for default verse structure
 // Import pdfmake and vfs_fonts
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from '../fonts/Pingfang';
+import htmlToPdfmake from 'html-to-pdfmake';
 import { isSplitDay, sectionStorageKey, loadLineTitles } from '../lib/readingLines';
+import { loadSummaryHtml } from '../lib/summary';
 
 // Initialize pdfMake with the virtual file system
 pdfMake.vfs = pdfFonts;
@@ -26,25 +28,35 @@ pdfMake.fonts = {
 // Helper function to generate a new empty verse (consistent with VerseSection)
 const createNewVerse = () => ({ id: uuidv4(), verseReference: "", verseText: "" });
 
-// Helper function to load summary text from local storage
-const loadSummaryState = (language) => {
-	const storageKey = `summary_${language}`;
-	try {
-		const savedSummary = localStorage.getItem(storageKey);
-		// Return saved summary or default based on language
-		if (savedSummary !== null) {
-			return savedSummary;
-		} else {
-			return language === 'en'
-				? 'Summary'
-				: '摘要';
+// Number nested lists 1. → a. → i. (matching the editor) via the `type` attribute,
+// which html-to-pdfmake understands
+const OL_TYPES = ['1', 'a', 'i'];
+const numberNestedLists = (html) => {
+	const doc = new DOMParser().parseFromString(html, 'text/html');
+	doc.body.querySelectorAll('ol').forEach(ol => {
+		let depth = 0;
+		for (let el = ol.parentElement; el; el = el.parentElement) {
+			if (el.tagName === 'OL') depth++;
 		}
-	} catch (err) {
-		// Return default on error
-		return language === 'en'
-			? 'Summary'
-			: '摘要';
-	}
+		ol.setAttribute('type', OL_TYPES[depth % OL_TYPES.length]);
+	});
+	return doc.body.innerHTML;
+};
+
+// Convert the rich text summary (HTML) into pdfmake content
+const buildSummaryContent = (language) => {
+	// Blank lines are saved as empty paragraphs, which html-to-pdfmake would drop
+	// (trailing ones are just the editor's spare last line, so drop those)
+	const html = loadSummaryHtml(language)
+		.replace(/(<p[^>]*><\/p>)+$/, '')
+		.replace(/<p([^>]*)><\/p>/g, '<p$1>&nbsp;</p>');
+	return htmlToPdfmake(numberNestedLists(html), {
+		defaultStyles: {
+			p: { margin: [0, 0, 0, 0] },
+			ul: { marginBottom: 0, marginLeft: 0 },
+			ol: { marginBottom: 0, marginLeft: 0 }
+		}
+	});
 };
 
 // Helper function to load title text from local storage
@@ -121,7 +133,6 @@ const ExportButtons = ({ sundayDate, daysToShow = 7, startOnSunday = true, split
 			const savedTitleText = loadTitleState(language);
 			const sundayDateFormatted = moment(sundayDate).locale(language).format(language === 'en' ? 'MMMM Do, YYYY' : 'LL');
 			const titleLine = `${sundayDateFormatted} ${savedTitleText}`.trim(); // Construct full title
-			const summaryText = loadSummaryState(language);
 
 			const sectionData = [];
 			const splitRows = []; // days rendered as two reading lines side by side
@@ -165,7 +176,7 @@ const ExportButtons = ({ sundayDate, daysToShow = 7, startOnSunday = true, split
 					},
 					// Summary section
 					{
-						text: summaryText || '', // Use prop, provide default
+						stack: buildSummaryContent(language),
 						style: 'summary',
 						margin: [0, 3, 0, 3]
 					},
@@ -258,7 +269,6 @@ const ExportButtons = ({ sundayDate, daysToShow = 7, startOnSunday = true, split
 					},
 					summary: {
 						fontSize: 12,
-						bold: true,
 						margin: [0, 0, 0, 5],
 						lineHeight: 1.0
 					},

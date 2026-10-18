@@ -13,3 +13,28 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Rich text summary editor (Tailwind's preflight strips list styles) */
+.summary-editor p {
+  margin: 0;
+}
+.summary-editor ul,
+.summary-editor ol {
+  padding-left: 1.5rem;
+  margin: 0;
+}
+.summary-editor ul {
+  list-style: disc;
+}
+.summary-editor ol {
+  list-style: decimal;
+}
+.summary-editor ol ol {
+  list-style: lower-alpha;
+}
+.summary-editor ol ol ol {
+  list-style: lower-roman;
+}
+.summary-editor ol ol ol ol {
+  list-style: decimal;
+}
